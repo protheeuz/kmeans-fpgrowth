@@ -1,27 +1,32 @@
 <?php
-class FPTree {
+class FPTree
+{
     public $root;
     public $headerTable;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->root = new FPNode(null, null);
         $this->headerTable = [];
     }
 
-    public function addTransaction($transaction) {
+    public function addTransaction($transaction)
+    {
         $sortedItems = $this->sortItems($transaction);
         $this->insertTree($sortedItems, $this->root);
     }
 
-    private function sortItems($transaction) {
+    private function sortItems($transaction)
+    {
         // Urutkan item berdasarkan frekuensi (frekuensi dapat diperoleh dari header table)
-        usort($transaction, function($a, $b) {
+        usort($transaction, function ($a, $b) {
             return $this->headerTable[$b]['frequency'] - $this->headerTable[$a]['frequency'];
         });
         return $transaction;
     }
 
-    private function insertTree($items, $node) {
+    private function insertTree($items, $node)
+    {
         if (count($items) == 0) return;
 
         $first = $items[0];
@@ -42,7 +47,8 @@ class FPTree {
         $this->insertTree($items, $child);
     }
 
-    public function buildHeaderTable($transactions) {
+    public function buildHeaderTable($transactions)
+    {
         foreach ($transactions as $transaction) {
             foreach ($transaction as $item) {
                 if (!isset($this->headerTable[$item])) {
@@ -53,7 +59,7 @@ class FPTree {
         }
     }
 
-    public function minePatterns($minSupport) {
+    public function minePatterns($minSupport, $transactions) {
         $patterns = [];
         foreach ($this->headerTable as $item => $entry) {
             $pattern = $this->minePatternBase($item, $minSupport);
@@ -61,10 +67,51 @@ class FPTree {
                 $patterns[$item] = $pattern;
             }
         }
+        $confidence = $this->calculateConfidence($patterns, $transactions);
+        foreach ($patterns as $item => &$patternList) {
+            foreach ($patternList as &$pattern) {
+                $pattern['confidence'] = $confidence[implode(',', $pattern['pattern'])];
+            }
+        }
         return $patterns;
     }
 
-    private function minePatternBase($item, $minSupport) {
+    private function calculateConfidence($patterns, $transactions)
+    {
+        $patternFrequency = [];
+        foreach ($patterns as $pattern => $entries) {
+            foreach ($entries as $entry) {
+                $patternStr = implode(',', $entry['pattern']);
+                if (!isset($patternFrequency[$patternStr])) {
+                    $patternFrequency[$patternStr] = 0;
+                }
+                $patternFrequency[$patternStr] += $entry['frequency'];
+            }
+        }
+
+        $confidence = [];
+        foreach ($patterns as $pattern => $entries) {
+            foreach ($entries as $entry) {
+                $patternStr = implode(',', $entry['pattern']);
+                $itemCount = 0;
+                foreach ($transactions as $transaction) {
+                    if (in_array($pattern, $transaction)) {
+                        $itemCount++;
+                    }
+                }
+                if ($itemCount > 0) {
+                    $confidence[$patternStr] = $patternFrequency[$patternStr] / $itemCount;
+                } else {
+                    $confidence[$patternStr] = 0;
+                }
+            }
+        }
+
+        return $confidence;
+    }
+
+    private function minePatternBase($item, $minSupport)
+    {
         $patterns = [];
         foreach ($this->headerTable[$item]['nodes'] as $node) {
             $frequency = $node->frequency;
@@ -77,20 +124,23 @@ class FPTree {
     }
 }
 
-class FPNode {
+class FPNode
+{
     public $item;
     public $frequency;
     public $parent;
     public $children;
 
-    public function __construct($item, $parent) {
+    public function __construct($item, $parent)
+    {
         $this->item = $item;
         $this->frequency = 1;
         $this->parent = $parent;
         $this->children = [];
     }
 
-    public function getChild($item) {
+    public function getChild($item)
+    {
         foreach ($this->children as $child) {
             if ($child->item == $item) {
                 return $child;
@@ -99,15 +149,18 @@ class FPNode {
         return null;
     }
 
-    public function addChild($child) {
+    public function addChild($child)
+    {
         $this->children[] = $child;
     }
 
-    public function incrementFrequency() {
+    public function incrementFrequency()
+    {
         $this->frequency++;
     }
 
-    public function getPath() {
+    public function getPath()
+    {
         $path = [];
         $node = $this;
         while ($node->parent != null) {
@@ -117,4 +170,3 @@ class FPNode {
         return array_reverse($path);
     }
 }
-?>

@@ -7,9 +7,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $kode_produk = $_POST['kode_produk'];
     $jumlah = $_POST['jumlah'];
     $tanggal = $_POST['tanggal'];
+    $min_support = floatval($_POST['min_support']);
+    $confidence = floatval($_POST['confidence']);
 
-    $stmt = $con->prepare("INSERT INTO penjualan (kode_produk, jumlah, tanggal) VALUES (?, ?, ?)");
-    $stmt->bind_param("sis", $kode_produk, $jumlah, $tanggal);
+    $stmt = $con->prepare("INSERT INTO penjualan (kode_produk, jumlah, tanggal, min_support, confidence) VALUES (?, ?, ?, ?, ?)");
+    $stmt->bind_param("sissi", $kode_produk, $jumlah, $tanggal, $min_support, $confidence);
     if ($stmt->execute()) {
         echo "<script>alert('Data penjualan berhasil ditambahkan');</script>";
     } else {
@@ -52,6 +54,14 @@ while ($h = $q->fetch_assoc()) {
                                 <div class="form-group">
                                     <label for="tanggal">Tanggal</label>
                                     <input type="date" name="tanggal" id="tanggal" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="min_support">Minimal Support</label>
+                                    <input type="number" step="0.01" name="min_support" id="min_support" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="confidence">Confidence</label>
+                                    <input type="number" step="0.01" name="confidence" id="confidence" class="form-control" required>
                                 </div>
                                 <button type="submit" class="btn btn-primary">Tambah Penjualan</button>
                             </form>
