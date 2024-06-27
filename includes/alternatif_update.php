@@ -10,6 +10,7 @@ $id = '';
 $action = 'add';
 $kode = '';
 $nama = '';
+$jumlah_terjual = ''; // Pastikan jumlah_terjual didefinisikan
 
 $kriteria = array();
 $q = $con->query("SELECT * FROM kriteria ORDER BY kode");
@@ -24,6 +25,7 @@ if(isset($_POST['save'])){
     }
     $kode = $_POST['kode'];
     $nama = $_POST['nama'];
+    $jumlah_terjual = $_POST['jumlah_terjual'];
     
     if(empty($kode) or empty($nama)){
         $error = 'Lengkapi kode dan nama terlebih dahulu';
@@ -33,47 +35,29 @@ if(isset($_POST['save'])){
             if ($q->num_rows > 0) {
                 $error = 'Kode sudah terdaftar';
             }else{
-                $con->query("INSERT INTO alternatif(kode, nama) VALUES('".escape($kode)."', '".escape($nama)."')");
+                $con->query("INSERT INTO alternatif(kode, nama, jumlah_terjual) VALUES('".escape($kode)."', '".escape($nama)."', '".escape($jumlah_terjual)."')");
                 $id_alternatif = $con->insert_id;
                 foreach ($kriteria as $key => $value) {
-                    if(!empty($_POST['nilai_'.$value['id']])){
-                        $nilai = $_POST['nilai_'.$value['id']];
-                    }else{
-                        $nilai = 0;
-                    }
+                    $nilai = !empty($_POST['nilai_'.$value['id']]) ? $_POST['nilai_'.$value['id']] : 0;
                     $con->query("INSERT INTO nilai_kriteria(id_alternatif, id_kriteria, nilai) VALUES('".escape($id_alternatif)."', '".escape($value['id'])."', '".escape($nilai)."')");
-                }
-                if(!empty($_POST['jumlah_terjual'])){
-                    $jumlah_terjual = $_POST['jumlah_terjual'];
-                    $con->query("UPDATE alternatif SET jumlah_terjual='".escape($jumlah_terjual)."' WHERE id_alternatif='".escape($id_alternatif)."'");
                 }
                 $success = 'Data alternatif berhasil disimpan';
             }
-
         }elseif($action == 'edit'){
             $q = $con->query("SELECT * FROM alternatif WHERE kode='".escape($kode)."' and id_alternatif <> '".escape($id)."'");
             if ($q->num_rows > 0) {
                 $error = 'Kode sudah terdaftar';
             }else{
-                $con->query("UPDATE alternatif SET kode='".escape($kode)."', nama='".escape($nama)."' WHERE id_alternatif='".escape($id)."'");
+                $con->query("UPDATE alternatif SET kode='".escape($kode)."', nama='".escape($nama)."', jumlah_terjual='".escape($jumlah_terjual)."' WHERE id_alternatif='".escape($id)."'");
                 $con->query("DELETE FROM nilai_kriteria WHERE id_alternatif='".escape($id)."'");
                 
                 foreach ($kriteria as $key => $value) {
-                    if(!empty($_POST['nilai_'.$value['id']])){
-                        $nilai = $_POST['nilai_'.$value['id']];
-                    }else{
-                        $nilai = 0;
-                    }
+                    $nilai = !empty($_POST['nilai_'.$value['id']]) ? $_POST['nilai_'.$value['id']] : 0;
                     $con->query("INSERT INTO nilai_kriteria(id_alternatif, id_kriteria, nilai) VALUES('".escape($id)."', '".escape($value['id'])."', '".escape($nilai)."')");
-                }
-                if(!empty($_POST['jumlah_terjual'])){
-                    $jumlah_terjual = $_POST['jumlah_terjual'];
-                    $con->query("UPDATE alternatif SET jumlah_terjual='".escape($jumlah_terjual)."' WHERE id_alternatif='".escape($id)."'");
                 }
                 $success = 'Data alternatif berhasil diperbarui';
             }
         }
-        
     }
     if(!empty($error)){
         header('HTTP/1.1 500 Internal Server Error');
@@ -82,7 +66,6 @@ if(isset($_POST['save'])){
         echo $success;
     }
     die;
-
 }else{
     if(isset($_GET['id'])){
         $id = $_GET['id'];
@@ -128,10 +111,7 @@ if($action=='add'){$header='Input Data Alternatif';}else{$header='Ubah Data Alte
                                 </div>
                                 <?php  
                                 foreach ($kriteria as $key => $value) {
-                                    $nilai = '';
-                                    if(isset($nilai_kriteria[$id][$value['id']])){
-                                        $nilai = $nilai_kriteria[$id][$value['id']];
-                                    }
+                                    $nilai = isset($nilai_kriteria[$id][$value['id']]) ? $nilai_kriteria[$id][$value['id']] : '';
                                     echo '
                                     <div class="form-group">
                                         <label for="nilai_'.$value['id'].'" class="col-form-label">Nilai '.$value['nama'].'</label>

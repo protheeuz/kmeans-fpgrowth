@@ -33,10 +33,7 @@ while($h = $q->fetch_array()){
         <td class="text-nowrap">'.htmlspecialchars($h['kode']).'</td>
         <td class="text-nowrap">'.htmlspecialchars($h['nama']).'</td>';
     foreach ($kriteria as $key => $value) {
-        $nilai = '';
-        if(isset($nilai_kriteria[$id][$value['id']])){
-            $nilai = $nilai_kriteria[$id][$value['id']];
-        }
+        $nilai = isset($nilai_kriteria[$id][$value['id']]) ? $nilai_kriteria[$id][$value['id']] : '';
         $daftar .= '<td class="text-center">'.htmlspecialchars($nilai).'</td>';
     }
     $daftar .= '

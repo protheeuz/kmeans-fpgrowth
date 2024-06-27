@@ -13,9 +13,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $stmt = $con->prepare("INSERT INTO penjualan (kode_produk, jumlah, tanggal, min_support, confidence) VALUES (?, ?, ?, ?, ?)");
     $stmt->bind_param("sissi", $kode_produk, $jumlah, $tanggal, $min_support, $confidence);
     if ($stmt->execute()) {
-        echo "<script>alert('Data penjualan berhasil ditambahkan');</script>";
+        echo '<script>
+            Swal.fire({
+                text: "Data penjualan berhasil ditambahkan",
+                icon: "success",
+                buttonsStyling: false,
+                confirmButtonText: "OK",
+                customClass: { confirmButton: "btn btn-primary" },
+            }).then(function() {
+                window.location.href = "'.$link_list.'";
+            });
+        </script>';
     } else {
-        echo "<script>alert('Gagal menambahkan data penjualan');</script>";
+        echo '<script>
+            Swal.fire({
+                text: "Gagal menambahkan data penjualan",
+                icon: "error",
+                buttonsStyling: false,
+                confirmButtonText: "OK",
+                customClass: { confirmButton: "btn btn-primary" },
+            });
+        </script>';
     }
     $stmt->close();
 }
@@ -72,3 +90,5 @@ while ($h = $q->fetch_assoc()) {
         </div>
     </section>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
