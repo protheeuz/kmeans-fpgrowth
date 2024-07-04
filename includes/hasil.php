@@ -8,7 +8,7 @@ require_once 'fp_growth.php';
 
 // Mengambil transaksi dari tabel penjualan
 $transactions = [];
-$minSupport = 2; // Default minimum support threshold
+$minSupport = isset($_POST['min_support']) ? intval($_POST['min_support']) : 2; // Ambil min_support dari input form
 $confidenceThreshold = 0.5; // Default confidence
 
 // Mengelompokkan transaksi berdasarkan tanggal
@@ -42,6 +42,29 @@ foreach ($transactions as $transaction) {
 }
 
 $patterns = $tree->minePatterns($minSupport, $transactions);
+
+// Menghitung support dan confidence
+function calculateSupport($pattern, $transactions) {
+    $count = 0;
+    foreach ($transactions as $transaction) {
+        if (count(array_intersect($pattern, $transaction)) == count($pattern)) {
+            $count++;
+        }
+    }
+    return $count / count($transactions);
+}
+
+function calculateConfidence($pattern, $transactions) {
+    // Implementasikan penghitungan confidence jika diperlukan
+    return 1; // Default value
+}
+
+foreach ($patterns as &$patternList) {
+    foreach ($patternList as &$pattern) {
+        $pattern['support'] = calculateSupport($pattern['pattern'], $transactions);
+        $pattern['confidence'] = calculateConfidence($pattern['pattern'], $transactions);
+    }
+}
 
 $kriteria = array();
 $q = $con->query("SELECT * FROM kriteria ORDER BY kode");
@@ -95,6 +118,7 @@ while ($h = $q->fetch_array()) {
     ';
 }
 
+$alternatif_cluster = array();
 $nilai_center_points = array();
 $daftar_center_points = '';
 $q = $con->query("SELECT * FROM cluster ORDER BY id_cluster");
@@ -107,9 +131,19 @@ while ($h = $q->fetch_array()) {
         <td class="text-nowrap">' . htmlspecialchars($h['kode']) . '</td>
         <td class="text-nowrap">' . htmlspecialchars($h['nama']) . '</td>';
     foreach ($kriteria as $key => $value) {
-        $nilai = '';
-        if (isset($center_points[$id][$value['id']])) {
-            $nilai = $center_points[$id][$value['id']];
+        $id_kriteria = $value['id'];
+        $nilai = 0;
+        $c = 0;
+        foreach ($alternatif as $key2 => $id_alternatif) {
+            if (isset($alternatif_cluster[$id_alternatif]) && $alternatif_cluster[$id_alternatif] == $id) {
+                $nilai += $nilai_dataset[$id_alternatif][$id_kriteria];
+                $c++;
+            }
+        }
+        if ($c > 0) {
+            $nilai = round($nilai / $c, 2);
+        } else {
+            $nilai = 0;
         }
         $nilai_center_points[$id][$value['id']] = (float)$nilai;
         $daftar_center_points .= '<td class="text-center">' . htmlspecialchars($nilai) . '</td>';
@@ -138,9 +172,11 @@ while ($h = $q->fetch_array()) {
         $nilai = 0;
         foreach ($kriteria as $key2 => $value2) {
             $id_kriteria = $value2['id'];
-            $nilai = $nilai + pow($nilai_dataset[$id_alternatif][$id_kriteria] - $nilai_center_points[$id_cluster][$id_kriteria], 2);
+            if (isset($nilai_dataset[$id_alternatif][$id_kriteria]) && isset($nilai_center_points[$id_cluster][$id_kriteria])) {
+                $nilai += pow($nilai_dataset[$id_alternatif][$id_kriteria] - $nilai_center_points[$id_cluster][$id_kriteria], 2);
+            }
         }
-        $nilai = pow($nilai, 0.5);
+        $nilai = sqrt($nilai);
         if ($key == 0) {
             $id_cluster_min = $id_cluster;
             $cluster_min = $value['nama'];
@@ -177,13 +213,17 @@ while ($h = $q->fetch_array()) {
         $nilai = 0;
         $c = 0;
         foreach ($alternatif as $key2 => $id_alternatif) {
-            if ($alternatif_cluster[$id_alternatif] == $id_cluster) {
-                $nilai = $nilai + $nilai_dataset[$id_alternatif][$id_kriteria];
+            if (isset($alternatif_cluster[$id_alternatif]) && $alternatif_cluster[$id_alternatif] == $id_cluster) {
+                $nilai += $nilai_dataset[$id_alternatif][$id_kriteria];
                 $c++;
             }
         }
-        $nilai = round($nilai / $c, 2);
-        $nilai_center_points_2[$id_cluster][$value['id']] = (float)$nilai;
+        if ($c > 0) {
+            $nilai = round($nilai / $c, 2);
+        } else {
+            $nilai = 0;
+        }
+        $nilai_center_points_2[$id][$value['id']] = (float)$nilai;
         $daftar_center_points_2 .= '<td class="text-center">' . htmlspecialchars($nilai) . '</td>';
     }
     $daftar_center_points_2 .= '
@@ -210,9 +250,11 @@ while ($h = $q->fetch_array()) {
         $nilai = 0;
         foreach ($kriteria as $key2 => $value2) {
             $id_kriteria = $value2['id'];
-            $nilai = $nilai + pow($nilai_dataset[$id_alternatif][$id_kriteria] - $nilai_center_points_2[$id_cluster][$id_kriteria], 2);
+            if (isset($nilai_dataset[$id_alternatif][$id_kriteria]) && isset($nilai_center_points_2[$id_cluster][$id_kriteria])) {
+                $nilai += pow($nilai_dataset[$id_alternatif][$id_kriteria] - $nilai_center_points_2[$id_cluster][$id_kriteria], 2);
+            }
         }
-        $nilai = pow($nilai, 0.5);
+        $nilai = sqrt($nilai);
         if ($key == 0) {
             $id_cluster_min = $id_cluster;
             $cluster_min = $value['nama'];
@@ -512,6 +554,7 @@ while ($h = $q->fetch_array()) {
                                             <th width="40">NO</th>
                                             <th>Pola</th>
                                             <th>Frekuensi</th>
+                                            <th>Support</th>
                                             <th>Confidence</th>
                                             <th>Rekomendasi</th>
                                         </tr>
@@ -522,6 +565,7 @@ while ($h = $q->fetch_array()) {
                                         foreach ($patterns as $item => $patternList) {
                                             foreach ($patternList as $pattern) {
                                                 $patternStr = implode(", ", $pattern['pattern']);
+                                                $support = isset($pattern['support']) ? $pattern['support'] : 0;
                                                 $recommendation = '';
                                                 if (isset($pattern['confidence']) && $pattern['confidence'] >= $confidenceThreshold) {
                                                     $recommendation = 'Rekomendasi untuk pembelian bersama, diletakkan di rak bersampingan, dan dijadikan satu ikatan produk.';
@@ -531,6 +575,7 @@ while ($h = $q->fetch_array()) {
                                                     <td class="text-center">' . $no . '</td>
                                                     <td class="text-nowrap">' . htmlspecialchars($patternStr) . '</td>
                                                     <td class="text-center">' . htmlspecialchars($pattern['frequency']) . '</td>
+                                                    <td class="text-center">' . htmlspecialchars($support) . '</td>
                                                     <td class="text-center">' . (isset($pattern['confidence']) ? htmlspecialchars($pattern['confidence']) : '-') . '</td>
                                                     <td class="text-nowrap">' . htmlspecialchars($recommendation) . '</td>
                                                 </tr>
