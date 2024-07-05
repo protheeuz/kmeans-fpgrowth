@@ -1,4 +1,6 @@
-<?php if (!defined('myweb')) { exit(); } ?>
+<?php if (!defined('myweb')) {
+    exit();
+} ?>
 <?php
 
 $link_list = $www . 'alternatif';
@@ -10,6 +12,12 @@ require_once 'fp_growth.php';
 $transactions = [];
 $minSupport = 2; // Default minimum support threshold
 $confidenceThreshold = 0.5; // Default confidence
+
+$q = $con->query("SELECT MIN(min_support) as min_support FROM penjualan");
+if ($q->num_rows > 0) {
+    $row = $q->fetch_assoc();
+    $minSupport = $row['min_support'];
+}
 
 // Mengelompokkan transaksi berdasarkan tanggal
 $q = $con->query("SELECT p.tanggal, GROUP_CONCAT(DISTINCT p.kode_produk ORDER BY p.kode_produk) AS items 
@@ -512,6 +520,7 @@ while ($h = $q->fetch_array()) {
                                             <th width="40">NO</th>
                                             <th>Pola</th>
                                             <th>Frekuensi</th>
+                                            <th>Support</th>
                                             <th>Confidence</th>
                                             <th>Rekomendasi</th>
                                         </tr>
@@ -522,6 +531,8 @@ while ($h = $q->fetch_array()) {
                                         foreach ($patterns as $item => $patternList) {
                                             foreach ($patternList as $pattern) {
                                                 $patternStr = implode(", ", $pattern['pattern']);
+                                                $support = isset($pattern['support']) ? round($pattern['support'] * 100, 2) . '%' : '0%';
+                                                $confidence = isset($pattern['confidence']) ? round($pattern['confidence'] * 100, 2) . '%' : '0%';
                                                 $recommendation = '';
                                                 if (isset($pattern['confidence']) && $pattern['confidence'] >= $confidenceThreshold) {
                                                     $recommendation = 'Rekomendasi untuk pembelian bersama, diletakkan di rak bersampingan, dan dijadikan satu ikatan produk.';
@@ -531,7 +542,8 @@ while ($h = $q->fetch_array()) {
                                                     <td class="text-center">' . $no . '</td>
                                                     <td class="text-nowrap">' . htmlspecialchars($patternStr) . '</td>
                                                     <td class="text-center">' . htmlspecialchars($pattern['frequency']) . '</td>
-                                                    <td class="text-center">' . (isset($pattern['confidence']) ? htmlspecialchars($pattern['confidence']) : '-') . '</td>
+                                                    <td class="text-center">' . htmlspecialchars($support) . '</td>
+                                                    <td class="text-center">' . htmlspecialchars($confidence) . '</td>
                                                     <td class="text-nowrap">' . htmlspecialchars($recommendation) . '</td>
                                                 </tr>
                                                 ';
@@ -549,203 +561,104 @@ while ($h = $q->fetch_array()) {
         </div>
     </section>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.14/jspdf.plugin.autotable.min.js"></script>
 <script type="text/javascript">
     $(document).ready(function() {
-        var t = $('#tabel_dataset').DataTable({
-            "columnDefs": [{
-                "searchable": false,
-                "orderable": false,
-                "targets": [0]
-            }],
-            "order": [
-                [1, 'asc']
-            ]
-        });
-
-        t.on('order.dt search.dt', function() {
-            t.column(0, {
-                search: 'applied',
-                order: 'applied'
-            }).nodes().each(function(cell, i) {
-                cell.innerHTML = i + 1;
-            });
-        }).draw();
-
-        var t = $('#tabel_center_points').DataTable({
-            "columnDefs": [{
-                "searchable": false,
-                "orderable": false,
-                "targets": [0]
-            }],
-            "order": [
-                [1, 'asc']
-            ]
-        });
-
-        t.on('order.dt search.dt', function() {
-            t.column(0, {
-                search: 'applied',
-                order: 'applied'
-            }).nodes().each(function(cell, i) {
-                cell.innerHTML = i + 1;
-            });
-        }).draw();
-
-        var t = $('#tabel_iterasi_1').DataTable({
-            "columnDefs": [{
-                "searchable": false,
-                "orderable": false,
-                "targets": [0]
-            }],
-            "order": [
-                [1, 'asc']
-            ]
-        });
-
-        t.on('order.dt search.dt', function() {
-            t.column(0, {
-                search: 'applied',
-                order: 'applied'
-            }).nodes().each(function(cell, i) {
-                cell.innerHTML = i + 1;
-            });
-        }).draw();
-
-        var t = $('#tabel_center_points_2').DataTable({
-            "columnDefs": [{
-                "searchable": false,
-                "orderable": false,
-                "targets": [0]
-            }],
-            "order": [
-                [1, 'asc']
-            ]
-        });
-
-        t.on('order.dt search.dt', function() {
-            t.column(0, {
-                search: 'applied',
-                order: 'applied'
-            }).nodes().each(function(cell, i) {
-                cell.innerHTML = i + 1;
-            });
-        }).draw();
-
-        var t = $('#tabel_iterasi_2').DataTable({
-            "columnDefs": [{
-                "searchable": false,
-                "orderable": false,
-                "targets": [0]
-            }],
-            "order": [
-                [1, 'asc']
-            ]
-        });
-
-        t.on('order.dt search.dt', function() {
-            t.column(0, {
-                search: 'applied',
-                order: 'applied'
-            }).nodes().each(function(cell, i) {
-                cell.innerHTML = i + 1;
-            });
-        }).draw();
-
-        var t = $('#tabel_hasil').DataTable({
-            "columnDefs": [{
-                "searchable": false,
-                "orderable": false,
-                "targets": [0]
-            }],
-            "order": [
-                [1, 'asc']
-            ]
-        });
-
-        t.on('order.dt search.dt', function() {
-            t.column(0, {
-                search: 'applied',
-                order: 'applied'
-            }).nodes().each(function(cell, i) {
-                cell.innerHTML = i + 1;
-            });
-        }).draw();
-
-        var t = $('#tabel_produk_terjual').DataTable({
-            "columnDefs": [{
-                "searchable": false,
-                "orderable": false,
-                "targets": [0]
-            }],
-            "order": [
-                [1, 'asc']
-            ]
-        });
-
-        t.on('order.dt search.dt', function() {
-            t.column(0, {
-                search: 'applied',
-                order: 'applied'
-            }).nodes().each(function(cell, i) {
-                cell.innerHTML = i + 1;
-            });
-        }).draw();
-
-        var t = $('#tabel_asosiasi').DataTable({
-            "columnDefs": [{
-                "searchable": false,
-                "orderable": false,
-                "targets": [0]
-            }],
-            "order": [
-                [1, 'asc']
-            ]
-        });
-
-        t.on('order.dt search.dt', function() {
-            t.column(0, {
-                search: 'applied',
-                order: 'applied'
-            }).nodes().each(function(cell, i) {
-                cell.innerHTML = i + 1;
-            });
-        }).draw();
-
-        $('#exportPdfBtn').click(function() {
-            const doc = new jsPDF();
-
-            html2canvas(document.querySelector("#tabel_dataset")).then(canvas => {
-                doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 190, 0);
-                doc.addPage();
-                html2canvas(document.querySelector("#tabel_center_points")).then(canvas => {
-                    doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 190, 0);
-                    doc.addPage();
-                    html2canvas(document.querySelector("#tabel_iterasi_1")).then(canvas => {
-                        doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 190, 0);
-                        doc.addPage();
-                        html2canvas(document.querySelector("#tabel_center_points_2")).then(canvas => {
-                            doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 190, 0);
-                            doc.addPage();
-                            html2canvas(document.querySelector("#tabel_iterasi_2")).then(canvas => {
-                                doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 190, 0);
-                                doc.addPage();
-                                html2canvas(document.querySelector("#tabel_hasil")).then(canvas => {
-                                    doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 190, 0);
-                                    doc.addPage();
-                                    html2canvas(document.querySelector("#tabel_produk_terjual")).then(canvas => {
-                                        doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 190, 0);
-                                        doc.addPage();
-                                        html2canvas(document.querySelector("#tabel_asosiasi")).then(canvas => {
-                                            doc.addImage(canvas.toDataURL("image/png"), "PNG", 10, 10, 190, 0);
-                                            doc.save('hasil_clustering.pdf');
-                                        });
-                                    });
-                                });
-                            });
-                        });
+        // DataTables initialization
+        $('#tabel_dataset, #tabel_center_points, #tabel_iterasi_1, #tabel_center_points_2, #tabel_iterasi_2, #tabel_hasil, #tabel_produk_terjual, #tabel_asosiasi').each(function() {
+            if (!$.fn.DataTable.isDataTable(this)) {
+                $(this).DataTable({
+                    "columnDefs": [{
+                        "searchable": false,
+                        "orderable": false,
+                        "targets": [0]
+                    }],
+                    "order": [
+                        [1, 'asc']
+                    ]
+                }).on('order.dt search.dt', function() {
+                    $(this).DataTable().column(0, {
+                        search: 'applied',
+                        order: 'applied'
+                    }).nodes().each(function(cell, i) {
+                        cell.innerHTML = i + 1;
                     });
-                });
+                }).draw();
+            }
+        });
+
+        // PDF Export functionality
+        $('#exportPdfBtn').click(function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('landscape');  // Use landscape mode for wider tables
+
+            // Header section
+            doc.setFontSize(20);
+            doc.text("HASIL AKHIR & ASOSIASI", 148, 20, null, null, "center");
+            doc.setFontSize(16);
+            doc.text("KKGJ MART - IVAN RYADI", 148, 30, null, null, "center");
+            doc.text("THESIS PURPOSE", 148, 40, null, null, "center");
+
+            doc.setFontSize(12);
+            doc.text("- HASIL DARI HASIL AKHIR DAN HASIL ASOSIASI PRODUK -", 148, 50, null, null, "center");
+
+            // Menambahkan tabel hasil akhir
+            let hasilAkhir = [];
+            $("#tabel_hasil thead tr th").each(function() {
+                hasilAkhir.push($(this).text());
             });
+
+            let hasilAkhirBody = [];
+            $("#tabel_hasil tbody tr").each(function() {
+                let row = [];
+                $(this).find("td").each(function() {
+                    row.push($(this).text());
+                });
+                hasilAkhirBody.push(row);
+            });
+
+            doc.autoTable({
+                head: [hasilAkhir],
+                body: hasilAkhirBody,
+                startY: 60,
+                theme: 'striped',
+                headStyles: { fillColor: [100, 100, 255] },
+                styles: { fontSize: 10, cellWidth: 'auto' },  // Adjust cell width automatically
+                tableLineColor: [0, 0, 0],
+                tableLineWidth: 0.1
+            });
+
+            // Menambahkan halaman baru untuk hasil asosiasi
+            doc.addPage('landscape');  // Use landscape mode for wider tables
+
+            // Menambahkan tabel hasil asosiasi
+            let hasilAsosiasi = [];
+            $("#tabel_asosiasi thead tr th").each(function() {
+                hasilAsosiasi.push($(this).text());
+            });
+
+            let hasilAsosiasiBody = [];
+            $("#tabel_asosiasi tbody tr").each(function() {
+                let row = [];
+                $(this).find("td").each(function() {
+                    row.push($(this).text());
+                });
+                hasilAsosiasiBody.push(row);
+            });
+
+            doc.autoTable({
+                head: [hasilAsosiasi],
+                body: hasilAsosiasiBody,
+                startY: 20,
+                theme: 'striped',
+                headStyles: { fillColor: [100, 100, 255] },
+                styles: { fontSize: 10, cellWidth: 'auto' },  // Adjust cell width automatically
+                tableLineColor: [0, 0, 0],
+                tableLineWidth: 0.1
+            });
+
+            doc.save('hasil_clustering.pdf');
         });
     });
 </script>

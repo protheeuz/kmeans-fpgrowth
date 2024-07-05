@@ -59,7 +59,8 @@ class FPTree
         }
     }
 
-    public function minePatterns($minSupport, $transactions) {
+    public function minePatterns($minSupport, $transactions)
+    {
         $patterns = [];
         foreach ($this->headerTable as $item => $entry) {
             $pattern = $this->minePatternBase($item, $minSupport);
@@ -71,6 +72,7 @@ class FPTree
         foreach ($patterns as $item => &$patternList) {
             foreach ($patternList as &$pattern) {
                 $pattern['confidence'] = $confidence[implode(',', $pattern['pattern'])];
+                $pattern['support'] = $pattern['frequency'] / count($transactions);
             }
         }
         return $patterns;
