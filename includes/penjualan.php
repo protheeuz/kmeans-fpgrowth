@@ -49,7 +49,7 @@ while ($h = $q->fetch_assoc()) {
 <div class="content-wrapper">
     <div class="row">
         <div class="col-12">
-            <div class="content-header">Tambah Data Penjualan</div>
+            <div class="content-header">Input Asosiasi</div>
         </div>
     </div>
     <section>
