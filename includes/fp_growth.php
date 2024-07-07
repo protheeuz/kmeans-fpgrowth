@@ -46,7 +46,6 @@ class FPTree
         array_shift($items);
         $this->insertTree($items, $child);
     }
-
     public function buildHeaderTable($transactions)
     {
         foreach ($transactions as $transaction) {
@@ -58,7 +57,6 @@ class FPTree
             }
         }
     }
-
     public function minePatterns($minSupport, $transactions)
     {
         $patterns = [];
@@ -77,7 +75,6 @@ class FPTree
         }
         return $patterns;
     }
-
     private function calculateConfidence($patterns, $transactions)
     {
         $patternFrequency = [];

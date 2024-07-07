@@ -14,20 +14,24 @@
                                     <thead>
                                         <tr>
                                             <th>NO</th>
-                                            <th>KODE PRODUK</th>
+                                            <th>NAMA PRODUK</th>
                                             <th>JUMLAH</th>
                                             <th>TANGGAL</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php
-                                        $q = $con->query("SELECT * FROM penjualan ORDER BY tanggal DESC");
+                                        // Mengambil data penjualan dengan join ke tabel alternatif untuk mendapatkan nama produk
+                                        $q = $con->query("SELECT p.jumlah, p.tanggal, a.nama AS nama_produk 
+                                                          FROM penjualan p 
+                                                          JOIN alternatif a ON p.kode_produk = a.kode 
+                                                          ORDER BY p.tanggal DESC");
                                         $no = 1;
                                         while($row = $q->fetch_assoc()) {
                                             echo "
                                             <tr>
                                                 <td>{$no}</td>
-                                                <td>{$row['kode_produk']}</td>
+                                                <td>{$row['nama_produk']}</td>
                                                 <td>{$row['jumlah']}</td>
                                                 <td>{$row['tanggal']}</td>
                                             </tr>
