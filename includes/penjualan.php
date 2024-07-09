@@ -127,6 +127,7 @@ $patterns = $tree->minePatterns($minSupport, $transactions);
                 <div class="card">
                     <div class="card-header">
                         <h4 class="card-title">Hasil Asosiasi Produk</h4>
+                        
                     </div>
                     <div class="card-content">
                         <div class="card-body">
@@ -144,13 +145,13 @@ $patterns = $tree->minePatterns($minSupport, $transactions);
                                     </thead>
                                     <tbody>
                                         <?php
-                                        $no = 1;
                                         // Ambil nama produk dari tabel alternatif
                                         $productNames = [];
                                         $q = $con->query("SELECT kode, nama FROM alternatif");
                                         while ($row = $q->fetch_assoc()) {
                                             $productNames[$row['kode']] = $row['nama'];
                                         }
+                                        $no = 1;
                                         foreach ($patterns as $item => $patternList) {
                                             foreach ($patternList as $pattern) {
                                                 // Ganti kode produk dengan nama produk
@@ -180,6 +181,7 @@ $patterns = $tree->minePatterns($minSupport, $transactions);
                                         ?>
                                     </tbody>
                                 </table>
+                                <button id="exportPdfBtn" class="btn btn-primary">Ekspor ke PDF</button>
                             </div>
                         </div>
                     </div>
@@ -195,7 +197,7 @@ $patterns = $tree->minePatterns($minSupport, $transactions);
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.14/jspdf.plugin.autotable.min.js"></script>
 <script type="text/javascript">
 $(document).ready(function () {
-    $('#tabel_asosiasi').DataTable({
+    var table = $('#tabel_asosiasi').DataTable({
         "columnDefs": [{
             "searchable": false,
             "orderable": false,
@@ -203,6 +205,13 @@ $(document).ready(function () {
         }],
         "order": [[1, 'asc']]
     });
+
+    table.on('order.dt search.dt', function () {
+        let i = 1;
+        table.cells(null, 0, {search: 'applied', order: 'applied'}).every(function (cell) {
+            this.data(i++);
+        });
+    }).draw();
 
     $('#exportPdfBtn').click(function() {
         const { jsPDF } = window.jspdf;
@@ -236,7 +245,7 @@ $(document).ready(function () {
         doc.autoTable({
             head: [hasilAsosiasi],
             body: hasilAsosiasiBody,
-            startY: 20,
+            startY: 60,
             theme: 'striped',
             headStyles: { fillColor: [100, 100, 255] },
             styles: { fontSize: 10, cellWidth: 'auto' },  // Adjust cell width automatically
@@ -244,7 +253,7 @@ $(document).ready(function () {
             tableLineWidth: 0.1
         });
 
-        doc.save('hasil_clustering.pdf');
+        doc.save('hasil_asosiasi_produk.pdf');
     });
 });
 </script>
