@@ -136,7 +136,7 @@ $patterns = $tree->minePatterns($minSupport, $transactions);
                                     <thead>
                                         <tr>
                                             <th width="40">NO</th>
-                                            <th>Pola</th>
+                                            <th>Nama Produk</th>
                                             <th>Frekuensi</th>
                                             <th>Support</th>
                                             <th>Confidence</th>
