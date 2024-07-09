@@ -507,7 +507,7 @@ while ($h = $q->fetch_array()) {
                     </div>
                 </div>
                 <!-- Tambahkan tabel untuk menampilkan hasil asosiasi produk -->
-                <div class="card">
+                <!-- <div class="card">
                     <div class="card-header">
                         <h4 class="card-title">Hasil Asosiasi Produk</h4>
                     </div>
@@ -528,9 +528,19 @@ while ($h = $q->fetch_array()) {
                                     <tbody>
                                         <?php
                                         $no = 1;
+                                        // Ambil nama produk dari tabel alternatif
+                                        $productNames = [];
+                                        $q = $con->query("SELECT kode, nama FROM alternatif");
+                                        while ($row = $q->fetch_assoc()) {
+                                            $productNames[$row['kode']] = $row['nama'];
+                                        }
                                         foreach ($patterns as $item => $patternList) {
                                             foreach ($patternList as $pattern) {
-                                                $patternStr = implode(", ", $pattern['pattern']);
+                                                // Ganti kode produk dengan nama produk
+                                                $patternNames = array_map(function ($code) use ($productNames) {
+                                                    return isset($productNames[$code]) ? $productNames[$code] : $code;
+                                                }, $pattern['pattern']);
+                                                $patternStr = implode(", ", $patternNames);
                                                 $support = isset($pattern['support']) ? round($pattern['support'] * 100, 2) . '%' : '0%';
                                                 $confidence = isset($pattern['confidence']) ? round($pattern['confidence'] * 100, 2) . '%' : '0%';
                                                 $recommendation = '';
@@ -556,7 +566,7 @@ while ($h = $q->fetch_array()) {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div> -->
             </div>
         </div>
     </section>
