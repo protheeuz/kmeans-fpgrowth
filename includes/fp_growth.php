@@ -46,6 +46,7 @@ class FPTree
         array_shift($items);
         $this->insertTree($items, $child);
     }
+
     public function buildHeaderTable($transactions)
     {
         foreach ($transactions as $transaction) {
@@ -57,7 +58,8 @@ class FPTree
             }
         }
     }
-    public function minePatterns($minSupport, $transactions)
+
+    public function minePatterns($minSupport, $transactions, $minConfidence = 0.5)
     {
         $patterns = [];
         foreach ($this->headerTable as $item => $entry) {
@@ -71,13 +73,23 @@ class FPTree
             foreach ($patternList as &$pattern) {
                 $pattern['confidence'] = $confidence[implode(',', $pattern['pattern'])];
                 $pattern['support'] = $pattern['frequency'] / count($transactions);
+                // Filter pola berdasarkan minConfidence
+                if ($pattern['confidence'] < $minConfidence) {
+                    unset($pattern);
+                }
             }
+            // Hapus item yang kosong setelah filtering
+            $patternList = array_values(array_filter($patternList));
         }
         return $patterns;
     }
+
     private function calculateConfidence($patterns, $transactions)
     {
         $patternFrequency = [];
+        $transactionCount = count($transactions);
+
+        // Calculate frequency of each pattern
         foreach ($patterns as $pattern => $entries) {
             foreach ($entries as $entry) {
                 $patternStr = implode(',', $entry['pattern']);
@@ -89,17 +101,23 @@ class FPTree
         }
 
         $confidence = [];
+        // Calculate confidence for each pattern
         foreach ($patterns as $pattern => $entries) {
             foreach ($entries as $entry) {
                 $patternStr = implode(',', $entry['pattern']);
                 $itemCount = 0;
                 foreach ($transactions as $transaction) {
-                    if (in_array($pattern, $transaction)) {
+                    // Check if all items in pattern are in transaction
+                    if (count(array_intersect($entry['pattern'], $transaction)) == count($entry['pattern'])) {
                         $itemCount++;
                     }
                 }
                 if ($itemCount > 0) {
                     $confidence[$patternStr] = $patternFrequency[$patternStr] / $itemCount;
+                    // Cap confidence to 1 (100%)
+                    if ($confidence[$patternStr] > 1) {
+                        $confidence[$patternStr] = 1;
+                    }
                 } else {
                     $confidence[$patternStr] = 0;
                 }

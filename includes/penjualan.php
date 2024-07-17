@@ -1,49 +1,95 @@
-<?php if(!defined('myweb')){ exit(); }?>
+<?php if (!defined('myweb')) {
+    exit();
+} ?>
 
 <?php
-$link_list = $www.'penjualan';
+$link_list = $www . 'penjualan';
 require_once 'fp_growth.php'; // Pastikan untuk mengimpor FP-Growth
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $kode_produk = $_POST['kode_produk'];
     $jumlah = $_POST['jumlah'];
     $tanggal = $_POST['tanggal'];
-    $min_support = floatval($_POST['min_support']);
-    $confidence = floatval($_POST['confidence']);
+    $min_support = isset($_POST['min_support']) ? floatval($_POST['min_support']) / 100 : 0.01; // Default 1% jika tidak diisi
+    $min_confidence = isset($_POST['min_confidence']) ? floatval($_POST['min_confidence']) / 100 : 0.5; // Default 50% jika tidak diisi
 
-    $stmt = $con->prepare("INSERT INTO penjualan (kode_produk, jumlah, tanggal, min_support, confidence) VALUES (?, ?, ?, ?, ?)");
-    $stmt->bind_param("sissi", $kode_produk, $jumlah, $tanggal, $min_support, $confidence);
-    if ($stmt->execute()) {
+    // Validasi support maksimal
+    $max_support = calculateMaxSupport($con) / 100; // Konversi dari persentase ke desimal
+    if ($min_support > $max_support) {
         echo '<script>
             Swal.fire({
-                text: "Data penjualan berhasil ditambahkan",
-                icon: "success",
-                buttonsStyling: false,
-                confirmButtonText: "OK",
-                customClass: { confirmButton: "btn btn-primary" },
-            }).then(function() {
-                window.location.href = "'.$link_list.'";
-            });
-        </script>';
-    } else {
-        echo '<script>
-            Swal.fire({
-                text: "Gagal menambahkan data penjualan",
+                text: "Nilai minimal support tidak boleh melebihi ' . ($max_support * 100) . '%",
                 icon: "error",
                 buttonsStyling: false,
                 confirmButtonText: "OK",
                 customClass: { confirmButton: "btn btn-primary" },
             });
         </script>';
+    } else {
+        $stmt = $con->prepare("INSERT INTO penjualan (kode_produk, jumlah, tanggal, min_support, min_confidence) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("sisdd", $kode_produk, $jumlah, $tanggal, $min_support, $min_confidence);
+        if ($stmt->execute()) {
+            echo '<script>
+                Swal.fire({
+                    text: "Data penjualan berhasil ditambahkan",
+                    icon: "success",
+                    buttonsStyling: false,
+                    confirmButtonText: "OK",
+                    customClass: { confirmButton: "btn btn-primary" },
+                }).then(function() {
+                    window.location.href = "' . $link_list . '";
+                });
+            </script>';
+        } else {
+            echo '<script>
+                Swal.fire({
+                    text: "Gagal menambahkan data penjualan",
+                    icon: "error",
+                    buttonsStyling: false,
+                    confirmButtonText: "OK",
+                    customClass: { confirmButton: "btn btn-primary" },
+                });
+            </script>';
+        }
+        $stmt->close();
     }
-    $stmt->close();
+}
+
+// Fungsi untuk menghitung support maksimum
+function calculateMaxSupport($con) {
+    $totalTransactions = 0;
+    $itemCount = [];
+
+    $q = $con->query("SELECT GROUP_CONCAT(DISTINCT kode_produk ORDER BY kode_produk) AS items FROM penjualan GROUP BY tanggal");
+    if ($q->num_rows > 0) {
+        while ($row = $q->fetch_assoc()) {
+            $totalTransactions++;
+            $items = explode(',', $row['items']);
+            foreach ($items as $item) {
+                if (!isset($itemCount[$item])) {
+                    $itemCount[$item] = 0;
+                }
+                $itemCount[$item]++;
+            }
+        }
+    }
+
+    $maxSupport = 0;
+    foreach ($itemCount as $count) {
+        $support = $count / $totalTransactions;
+        if ($support > $maxSupport) {
+            $maxSupport = $support;
+        }
+    }
+
+    return round($maxSupport * 100, 2); // Support maksimum dalam persentase
 }
 
 // Ambil data produk untuk pilihan kode produk
 $produk_options = '';
 $q = $con->query("SELECT kode, nama FROM alternatif ORDER BY nama");
 while ($h = $q->fetch_assoc()) {
-    $produk_options .= '<option value="'.$h['kode'].'">'.$h['nama'].'</option>';
+    $produk_options .= '<option value="' . $h['kode'] . '">' . $h['nama'] . '</option>';
 }
 
 // Ambil data transaksi dari tabel penjualan
@@ -59,13 +105,12 @@ if ($q->num_rows > 0) {
 }
 
 // Jalankan algoritma FP-Growth untuk mendapatkan pola asosiasi
-$minSupport = 2; // Default minimum support threshold
-$confidenceThreshold = 0.5; // Default confidence threshold
+$min_support = 0.01; // Default 1% jika tidak ada input
+$min_confidence = 0.5; // Default 50% jika tidak ada input
 
-$q = $con->query("SELECT MIN(min_support) as min_support FROM penjualan");
-if ($q->num_rows > 0) {
-    $row = $q->fetch_assoc();
-    $minSupport = $row['min_support'];
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $min_support = floatval($_POST['min_support']) / 100; // Konversi dari persentase ke desimal
+    $min_confidence = floatval($_POST['min_confidence']) / 100; // Konversi dari persentase ke desimal
 }
 
 $tree = new FPTree();
@@ -74,14 +119,14 @@ foreach ($transactions as $transaction) {
     $tree->addTransaction($transaction);
 }
 
-$patterns = $tree->minePatterns($minSupport, $transactions);
+$patterns = $tree->minePatterns($min_support, $transactions, $min_confidence);
 
 ?>
 
 <div class="content-wrapper">
     <div class="row">
         <div class="col-12">
-            <div class="content-header">Input Asosiasi</div>
+            <div class="content-header">Input Data Penjualan</div>
         </div>
     </div>
     <section>
@@ -106,12 +151,12 @@ $patterns = $tree->minePatterns($minSupport, $transactions);
                                     <input type="date" name="tanggal" id="tanggal" class="form-control" required>
                                 </div>
                                 <div class="form-group">
-                                    <label for="min_support">Minimal Support</label>
-                                    <input type="number" step="0.01" name="min_support" id="min_support" class="form-control" required>
+                                    <label for="min_support">Minimal Support (%) (1-100%)</label>
+                                    <input type="number" step="0.01" name="min_support" id="min_support" class="form-control" min="1" max="100" required>
                                 </div>
                                 <div class="form-group">
-                                    <label for="confidence">Confidence</label>
-                                    <input type="number" step="0.01" name="confidence" id="confidence" class="form-control" required>
+                                    <label for="min_confidence">Minimal Confidence (%) (1-100%)</label>
+                                    <input type="number" step="0.01" name="min_confidence" id="min_confidence" class="form-control" min="1" max="100" required>
                                 </div>
                                 <button type="submit" class="btn btn-primary">Tambah Penjualan</button>
                             </form>
@@ -120,14 +165,13 @@ $patterns = $tree->minePatterns($minSupport, $transactions);
                 </div>
             </div>
         </div>
-        
+
         <!-- Tambahkan tabel untuk menampilkan hasil asosiasi produk -->
         <div class="row">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
                         <h4 class="card-title">Hasil Asosiasi Produk</h4>
-                        
                     </div>
                     <div class="card-content">
                         <div class="card-body">
@@ -162,7 +206,7 @@ $patterns = $tree->minePatterns($minSupport, $transactions);
                                                 $support = isset($pattern['support']) ? round($pattern['support'] * 100, 2) . '%' : '0%';
                                                 $confidence = isset($pattern['confidence']) ? round($pattern['confidence'] * 100, 2) . '%' : '0%';
                                                 $recommendation = '';
-                                                if (isset($pattern['confidence']) && $pattern['confidence'] >= $confidenceThreshold) {
+                                                if (isset($pattern['confidence']) && $pattern['confidence'] >= $min_confidence) {
                                                     $recommendation = 'Rekomendasi untuk pembelian bersama, diletakkan di rak bersampingan, dan dijadikan satu ikatan produk.';
                                                 }
                                                 echo '
@@ -188,7 +232,7 @@ $patterns = $tree->minePatterns($minSupport, $transactions);
                 </div>
             </div>
         </div>
-        
+
     </section>
 </div>
 
@@ -196,64 +240,74 @@ $patterns = $tree->minePatterns($minSupport, $transactions);
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.14/jspdf.plugin.autotable.min.js"></script>
 <script type="text/javascript">
-$(document).ready(function () {
-    var table = $('#tabel_asosiasi').DataTable({
-        "columnDefs": [{
-            "searchable": false,
-            "orderable": false,
-            "targets": [0]
-        }],
-        "order": [[1, 'asc']]
-    });
-
-    table.on('order.dt search.dt', function () {
-        let i = 1;
-        table.cells(null, 0, {search: 'applied', order: 'applied'}).every(function (cell) {
-            this.data(i++);
-        });
-    }).draw();
-
-    $('#exportPdfBtn').click(function() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('landscape');  // Use landscape mode for wider tables
-
-        // Header section
-        doc.setFontSize(20);
-        doc.text("HASIL AKHIR & ASOSIASI", 148, 20, null, null, "center");
-        doc.setFontSize(16);
-        doc.text("KKGJ MART - IVAN RYADI", 148, 30, null, null, "center");
-        doc.text("THESIS PURPOSE", 148, 40, null, null, "center");
-
-        doc.setFontSize(12);
-        doc.text("- HASIL DARI HASIL AKHIR DAN HASIL ASOSIASI PRODUK -", 148, 50, null, null, "center");
-
-        // Menambahkan tabel hasil asosiasi
-        let hasilAsosiasi = [];
-        $("#tabel_asosiasi thead tr th").each(function() {
-            hasilAsosiasi.push($(this).text());
+    $(document).ready(function() {
+        var table = $('#tabel_asosiasi').DataTable({
+            "columnDefs": [{
+                "searchable": false,
+                "orderable": false,
+                "targets": [0]
+            }],
+            "order": [
+                [1, 'asc']
+            ]
         });
 
-        let hasilAsosiasiBody = [];
-        $("#tabel_asosiasi tbody tr").each(function() {
-            let row = [];
-            $(this).find("td").each(function() {
-                row.push($(this).text());
+        table.on('order.dt search.dt', function() {
+            let i = 1;
+            table.cells(null, 0, {
+                search: 'applied',
+                order: 'applied'
+            }).every(function(cell) {
+                this.data(i++);
             });
-            hasilAsosiasiBody.push(row);
-        });
+        }).draw();
 
-        doc.autoTable({
-            head: [hasilAsosiasi],
-            body: hasilAsosiasiBody,
-            startY: 60,
-            theme: 'striped',
-            headStyles: { fillColor: [100, 100, 255] },
-            styles: { fontSize: 10, cellWidth: 'auto' },  // Adjust cell width automatically
-            tableLineColor: [0, 0, 0],
-            tableLineWidth: 0.1
-        });
+        $('#exportPdfBtn').click(function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('landscape'); // Use landscape mode for wider tables
 
-        doc.save('hasil_asosiasi_produk.pdf');
+            // Header section
+            doc.setFontSize(20);
+            doc.text("HASIL AKHIR & ASOSIASI", 148, 20, null, null, "center");
+            doc.setFontSize(16);
+            doc.text("KKGJ MART - IVAN RYADI", 148, 30, null, null, "center");
+            doc.text("THESIS PURPOSE", 148, 40, null, null, "center");
+
+            doc.setFontSize(12);
+            doc.text("- HASIL DARI HASIL AKHIR DAN HASIL ASOSIASI PRODUK -", 148, 50, null, null, "center");
+
+            // Menambahkan tabel hasil asosiasi
+            let hasilAsosiasi = [];
+            $("#tabel_asosiasi thead tr th").each(function() {
+                hasilAsosiasi.push($(this).text());
+            });
+
+            let hasilAsosiasiBody = [];
+            $("#tabel_asosiasi tbody tr").each(function() {
+                let row = [];
+                $(this).find("td").each(function() {
+                    row.push($(this).text());
+                });
+                hasilAsosiasiBody.push(row);
+            });
+
+            doc.autoTable({
+                head: [hasilAsosiasi],
+                body: hasilAsosiasiBody,
+                startY: 60,
+                theme: 'striped',
+                headStyles: {
+                    fillColor: [100, 100, 255]
+                },
+                styles: {
+                    fontSize: 10,
+                    cellWidth: 'auto'
+                }, // Adjust cell width automatically
+                tableLineColor: [0, 0, 0],
+                tableLineWidth: 0.1
+            });
+
+            doc.save('hasil_asosiasi_produk.pdf');
+        });
     });
-});
 </script>

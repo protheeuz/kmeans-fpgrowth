@@ -1,6 +1,8 @@
+// File hasil.php
 <?php if (!defined('myweb')) {
     exit();
 } ?>
+
 <?php
 
 $link_list = $www . 'alternatif';
@@ -222,7 +224,7 @@ while ($h = $q->fetch_array()) {
         }
         $nilai = pow($nilai, 0.5);
         if ($key == 0) {
-            $id_cluster_min = $id_cluster;
+            $id_cluster_min = $id_cluster; 
             $cluster_min = $value['nama'];
             $nilai_min = $nilai;
         } else {
@@ -507,7 +509,7 @@ while ($h = $q->fetch_array()) {
                     </div>
                 </div>
                 <!-- Tambahkan tabel untuk menampilkan hasil asosiasi produk -->
-                <!-- <div class="card">
+                <div class="card">
                     <div class="card-header">
                         <h4 class="card-title">Hasil Asosiasi Produk</h4>
                     </div>
@@ -566,7 +568,7 @@ while ($h = $q->fetch_array()) {
                             </div>
                         </div>
                     </div>
-                </div> -->
+                </div>
             </div>
         </div>
     </section>
@@ -575,33 +577,55 @@ while ($h = $q->fetch_array()) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.14/jspdf.plugin.autotable.min.js"></script>
 <script type="text/javascript">
     $(document).ready(function() {
-        // DataTables initialization
-        $('#tabel_dataset, #tabel_center_points, #tabel_iterasi_1, #tabel_center_points_2, #tabel_iterasi_2, #tabel_hasil, #tabel_produk_terjual, #tabel_asosiasi').each(function() {
-            if (!$.fn.DataTable.isDataTable(this)) {
-                $(this).DataTable({
-                    "columnDefs": [{
-                        "searchable": false,
-                        "orderable": false,
-                        "targets": [0]
-                    }],
-                    "order": [
-                        [1, 'asc']
-                    ]
-                }).on('order.dt search.dt', function() {
-                    $(this).DataTable().column(0, {
-                        search: 'applied',
-                        order: 'applied'
-                    }).nodes().each(function(cell, i) {
-                        cell.innerHTML = i + 1;
-                    });
-                }).draw();
+        // Custom search function
+        $.fn.dataTable.ext.search.push(
+            function(settings, data, dataIndex) {
+                var searchTerm = $('#customSearchBox').val().toLowerCase();
+                if (!searchTerm) {
+                    return true; // Tampilkan semua baris jika tidak ada pencarian
+                }
+
+                var columnData = data[2].toLowerCase(); // Ambil data dari kolom nama (index ke-2, sesuaikan jika berbeda)
+                if (columnData.startsWith(searchTerm)) {
+                    return true;
+                }
+
+                return false;
             }
+        );
+
+        // DataTables initialization
+        var table = $('#tabel_dataset, #tabel_center_points, #tabel_iterasi_1, #tabel_center_points_2, #tabel_iterasi_2, #tabel_hasil, #tabel_produk_terjual, #tabel_asosiasi').DataTable({
+            "columnDefs": [{
+                "searchable": false,
+                "orderable": false,
+                "targets": [0]
+            }],
+            "order": [
+                [1, 'asc']
+            ]
         });
+
+        table.on('order.dt search.dt', function() {
+            table.column(0, {
+                search: 'applied',
+                order: 'applied'
+            }).nodes().each(function(cell, i) {
+                cell.innerHTML = i + 1;
+            });
+        }).draw();
+
+        // Tambahkan input search field di atas tabel
+        var searchBox = $('<input type="text" id="customSearchBox" class="form-control" placeholder="Cari...">').on('keyup', function() {
+            table.draw();
+        });
+
+        $('.card-header').append(searchBox);
 
         // PDF Export functionality
         $('#exportPdfBtn').click(function() {
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('landscape');  // Use landscape mode for wider tables
+            const doc = new jsPDF('landscape'); // Use landscape mode for wider tables
 
             // Header section
             doc.setFontSize(20);
@@ -633,14 +657,19 @@ while ($h = $q->fetch_array()) {
                 body: hasilAkhirBody,
                 startY: 60,
                 theme: 'striped',
-                headStyles: { fillColor: [100, 100, 255] },
-                styles: { fontSize: 10, cellWidth: 'auto' },  // Adjust cell width automatically
+                headStyles: {
+                    fillColor: [100, 100, 255]
+                },
+                styles: {
+                    fontSize: 10,
+                    cellWidth: 'auto'
+                }, // Adjust cell width automatically
                 tableLineColor: [0, 0, 0],
                 tableLineWidth: 0.1
             });
 
             // Menambahkan halaman baru untuk hasil asosiasi
-            doc.addPage('landscape');  // Use landscape mode for wider tables
+            doc.addPage('landscape'); // Use landscape mode for wider tables
 
             // Menambahkan tabel hasil asosiasi
             let hasilAsosiasi = [];
@@ -662,8 +691,13 @@ while ($h = $q->fetch_array()) {
                 body: hasilAsosiasiBody,
                 startY: 20,
                 theme: 'striped',
-                headStyles: { fillColor: [100, 100, 255] },
-                styles: { fontSize: 10, cellWidth: 'auto' },  // Adjust cell width automatically
+                headStyles: {
+                    fillColor: [100, 100, 255]
+                },
+                styles: {
+                    fontSize: 10,
+                    cellWidth: 'auto'
+                }, // Adjust cell width automatically
                 tableLineColor: [0, 0, 0],
                 tableLineWidth: 0.1
             });
