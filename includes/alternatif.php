@@ -3,6 +3,7 @@
 
 $link_list = $www.'alternatif';
 $link_update = $www.'alternatif_update';
+$link_import = $www.'alternatif_import'; // Link untuk mengunggah dataset
 
 if(isset($_POST['delete']) and isset($_POST['id'])){
     $id = $_POST['id'];
@@ -55,8 +56,9 @@ while($h = $q->fetch_array()){
         <div class="row">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header">
-                        <a href="<?php echo $link_update; ?>" class="btn btn-success" ><i class="ft-plus"></i> Alternatif Baru</a>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <a href="<?php echo $link_update; ?>" class="btn btn-success"><i class="ft-plus"></i> Alternatif Baru</a>
+                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click();"><i class="ft-upload"></i> Pilih File Dataset</button>
                     </div>
                     <div class="card-content">
                         <div class="card-body">
@@ -82,15 +84,23 @@ while($h = $q->fetch_array()){
                                         <?php echo $daftar;?>
                                     </tbody>
                                 </table>
-
                             </div>
                         </div>
+                    </div>
+                    <div class="card-footer">
+                        <form id="uploadForm" action="<?php echo $link_import; ?>" method="post" enctype="multipart/form-data">
+                            <input type="file" id="fileInput" name="file" accept=".xlsx,.xls" style="display:none;" required>
+                        </form>
+                        <button class="btn btn-success" onclick="document.getElementById('uploadForm').submit();"><i class="ft-check"></i> Unggah</button>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
 <script type="text/javascript">
 $(document).ready(function () {
     var t = $('#tabel').DataTable( {
@@ -153,3 +163,5 @@ $(document).ready(function () {
     });
 })
 </script>
+</body>
+</html>

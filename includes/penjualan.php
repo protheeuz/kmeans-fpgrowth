@@ -56,7 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 // Fungsi untuk menghitung support maksimum
-function calculateMaxSupport($con) {
+function calculateMaxSupport($con)
+{
     $totalTransactions = 0;
     $itemCount = [];
 
@@ -189,7 +190,6 @@ $patterns = $tree->minePatterns($min_support, $transactions, $min_confidence);
                                     </thead>
                                     <tbody>
                                         <?php
-                                        // Ambil nama produk dari tabel alternatif
                                         $productNames = [];
                                         $q = $con->query("SELECT kode, nama FROM alternatif");
                                         while ($row = $q->fetch_assoc()) {
@@ -198,27 +198,26 @@ $patterns = $tree->minePatterns($min_support, $transactions, $min_confidence);
                                         $no = 1;
                                         foreach ($patterns as $item => $patternList) {
                                             foreach ($patternList as $pattern) {
-                                                // Ganti kode produk dengan nama produk
                                                 $patternNames = array_map(function ($code) use ($productNames) {
                                                     return isset($productNames[$code]) ? $productNames[$code] : $code;
                                                 }, $pattern['pattern']);
                                                 $patternStr = implode(", ", $patternNames);
                                                 $support = isset($pattern['support']) ? round($pattern['support'] * 100, 2) . '%' : '0%';
-                                                $confidence = isset($pattern['confidence']) ? round($pattern['confidence'] * 100, 2) . '%' : '0%';
+                                                $confidence = isset($pattern['confidence']) ? min(round($pattern['confidence'] * 100, 2), 100) . '%' : '0%'; // Ensure confidence does not exceed 100%
                                                 $recommendation = '';
                                                 if (isset($pattern['confidence']) && $pattern['confidence'] >= $min_confidence) {
                                                     $recommendation = 'Rekomendasi untuk pembelian bersama, diletakkan di rak bersampingan, dan dijadikan satu ikatan produk.';
                                                 }
                                                 echo '
-                                                <tr>
-                                                    <td class="text-center">' . $no . '</td>
-                                                    <td class="text-nowrap">' . htmlspecialchars($patternStr) . '</td>
-                                                    <td class="text-center">' . htmlspecialchars($pattern['frequency']) . '</td>
-                                                    <td class="text-center">' . htmlspecialchars($support) . '</td>
-                                                    <td class="text-center">' . htmlspecialchars($confidence) . '</td>
-                                                    <td class="text-nowrap">' . htmlspecialchars($recommendation) . '</td>
-                                                </tr>
-                                                ';
+                    <tr>
+                        <td class="text-center">' . $no . '</td>
+                        <td class="text-nowrap">' . htmlspecialchars($patternStr) . '</td>
+                        <td class="text-center">' . htmlspecialchars($pattern['frequency']) . '</td>
+                        <td class="text-center">' . htmlspecialchars($support) . '</td>
+                        <td class="text-center">' . htmlspecialchars($confidence) . '</td>
+                        <td class="text-nowrap">' . htmlspecialchars($recommendation) . '</td>
+                    </tr>
+                    ';
                                                 $no++;
                                             }
                                         }
@@ -263,7 +262,9 @@ $patterns = $tree->minePatterns($min_support, $transactions, $min_confidence);
         }).draw();
 
         $('#exportPdfBtn').click(function() {
-            const { jsPDF } = window.jspdf;
+            const {
+                jsPDF
+            } = window.jspdf;
             const doc = new jsPDF('landscape'); // Use landscape mode for wider tables
 
             // Header section
