@@ -6,6 +6,39 @@
 $link_list = $www . 'penjualan';
 require_once 'fp_growth.php'; // Pastikan untuk mengimpor FP-Growth
 
+// Fungsi untuk menghitung support maksimum
+function calculateMaxSupport($con)
+{
+    $totalTransactions = 0;
+    $itemCount = [];
+
+    $q = $con->query("SELECT GROUP_CONCAT(DISTINCT kode_produk ORDER BY kode_produk) AS items FROM penjualan GROUP BY tanggal");
+    if ($q->num_rows > 0) {
+        while ($row = $q->fetch_assoc()) {
+            $totalTransactions++;
+            $items = explode(',', $row['items']);
+            foreach ($items as $item) {
+                if (!isset($itemCount[$item])) {
+                    $itemCount[$item] = 0;
+                }
+                $itemCount[$item]++;
+            }
+        }
+    }
+
+    $maxSupport = 0;
+    foreach ($itemCount as $count) {
+        $support = $count / $totalTransactions;
+        if ($support > $maxSupport) {
+            $maxSupport = $support;
+        }
+    }
+
+    return round($maxSupport * 100, 2); // Support maksimum dalam persentase
+}
+
+$max_support = calculateMaxSupport($con); // Menghitung support maksimum di luar blok if
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $kode_produk = $_POST['kode_produk'];
     $jumlah = $_POST['jumlah'];
@@ -13,12 +46,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $min_support = isset($_POST['min_support']) ? floatval($_POST['min_support']) / 100 : 0.01; // Default 1% jika tidak diisi
     $min_confidence = isset($_POST['min_confidence']) ? floatval($_POST['min_confidence']) / 100 : 0.5; // Default 50% jika tidak diisi
 
-    // Validasi support maksimal
-    $max_support = calculateMaxSupport($con) / 100; // Konversi dari persentase ke desimal
-    if ($min_support > $max_support) {
+    // Debugging output
+    echo "<script>console.log('Max Support: " . $max_support . "%');</script>";
+    echo "<script>console.log('Min Support: " . ($min_support * 100) . "%');</script>";
+    echo "<script>console.log('Min Confidence: " . ($min_confidence * 100) . "%');</script>";
+
+    // Validasi input
+    if ($min_support <= 0 || $min_support > 1 || $min_confidence <= 0 || $min_confidence > 1) {
         echo '<script>
             Swal.fire({
-                text: "Nilai minimal support tidak boleh melebihi ' . ($max_support * 100) . '%",
+                text: "Nilai minimal support dan minimal confidence harus antara 1% dan 100%.",
+                icon: "error",
+                buttonsStyling: false,
+                confirmButtonText: "OK",
+                customClass: { confirmButton: "btn btn-primary" },
+            });
+        </script>';
+        exit();
+    }
+
+    // Validasi support maksimal
+    if ($min_support > ($max_support / 100)) { // Pastikan membandingkan dalam bentuk desimal
+        echo '<script>
+            Swal.fire({
+                text: "Nilai minimal support tidak boleh melebihi ' . $max_support . '%",
                 icon: "error",
                 buttonsStyling: false,
                 confirmButtonText: "OK",
@@ -53,37 +104,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         $stmt->close();
     }
-}
-
-// Fungsi untuk menghitung support maksimum
-function calculateMaxSupport($con)
-{
-    $totalTransactions = 0;
-    $itemCount = [];
-
-    $q = $con->query("SELECT GROUP_CONCAT(DISTINCT kode_produk ORDER BY kode_produk) AS items FROM penjualan GROUP BY tanggal");
-    if ($q->num_rows > 0) {
-        while ($row = $q->fetch_assoc()) {
-            $totalTransactions++;
-            $items = explode(',', $row['items']);
-            foreach ($items as $item) {
-                if (!isset($itemCount[$item])) {
-                    $itemCount[$item] = 0;
-                }
-                $itemCount[$item]++;
-            }
-        }
-    }
-
-    $maxSupport = 0;
-    foreach ($itemCount as $count) {
-        $support = $count / $totalTransactions;
-        if ($support > $maxSupport) {
-            $maxSupport = $support;
-        }
-    }
-
-    return round($maxSupport * 100, 2); // Support maksimum dalam persentase
 }
 
 // Ambil data produk untuk pilihan kode produk
@@ -185,7 +205,7 @@ $patterns = $tree->minePatterns($min_support, $transactions, $min_confidence);
                                             <th>Frekuensi</th>
                                             <th>Support</th>
                                             <th>Confidence</th>
-                                            <th>Rekomendasi</th>
+                                            <th>Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -204,20 +224,18 @@ $patterns = $tree->minePatterns($min_support, $transactions, $min_confidence);
                                                 $patternStr = implode(", ", $patternNames);
                                                 $support = isset($pattern['support']) ? round($pattern['support'] * 100, 2) . '%' : '0%';
                                                 $confidence = isset($pattern['confidence']) ? min(round($pattern['confidence'] * 100, 2), 100) . '%' : '0%'; // Ensure confidence does not exceed 100%
-                                                $recommendation = '';
-                                                if (isset($pattern['confidence']) && $pattern['confidence'] >= $min_confidence) {
-                                                    $recommendation = 'Rekomendasi untuk pembelian bersama, diletakkan di rak bersampingan, dan dijadikan satu ikatan produk.';
-                                                }
                                                 echo '
-                    <tr>
-                        <td class="text-center">' . $no . '</td>
-                        <td class="text-nowrap">' . htmlspecialchars($patternStr) . '</td>
-                        <td class="text-center">' . htmlspecialchars($pattern['frequency']) . '</td>
-                        <td class="text-center">' . htmlspecialchars($support) . '</td>
-                        <td class="text-center">' . htmlspecialchars($confidence) . '</td>
-                        <td class="text-nowrap">' . htmlspecialchars($recommendation) . '</td>
-                    </tr>
-                    ';
+                                                <tr>
+                                                    <td class="text-center">' . $no . '</td>
+                                                    <td class="text-nowrap">' . htmlspecialchars($patternStr) . '</td>
+                                                    <td class="text-center">' . htmlspecialchars($pattern['frequency']) . '</td>
+                                                    <td class="text-center">' . htmlspecialchars($support) . '</td>
+                                                    <td class="text-center">' . htmlspecialchars($confidence) . '</td>
+                                                    <td class="text-nowrap">
+                                                        <button class="btn btn-danger btn-sm btn_delete" data-id="' . $item . '">Hapus</button>
+                                                    </td>
+                                                </tr>
+                                                ';
                                                 $no++;
                                             }
                                         }
@@ -262,9 +280,7 @@ $patterns = $tree->minePatterns($min_support, $transactions, $min_confidence);
         }).draw();
 
         $('#exportPdfBtn').click(function() {
-            const {
-                jsPDF
-            } = window.jspdf;
+            const { jsPDF } = window.jspdf;
             const doc = new jsPDF('landscape'); // Use landscape mode for wider tables
 
             // Header section
@@ -309,6 +325,24 @@ $patterns = $tree->minePatterns($min_support, $transactions, $min_confidence);
             });
 
             doc.save('hasil_asosiasi_produk.pdf');
+        });
+
+        $("#tabel_asosiasi").on("click", ".btn_delete", function(){
+            var id = $(this).data('id');
+            Swal.fire({
+                text: "Anda yakin akan menghapus data ini ?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya',
+                cancelButtonText: 'Batal',
+                customClass: { confirmButton: "btn btn-primary", cancelButton: "btn btn-danger" },
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Perform delete action here
+                    console.log('Deleting:', id);
+                }
+            })        
+            return false;
         });
     });
 </script>
